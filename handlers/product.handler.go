@@ -1,20 +1,22 @@
 package handlers
 
 import (
+	"context"
 	"log"
 	"microservice/data"
 	"net/http"
 	"strconv"
-	"strings"
+
+	"github.com/gorilla/mux"
 )
 
 type Products struct {
 	log             *log.Logger
 	productsMethods *data.ProductsData
-	productModel    *data.Product
+	productModel    data.Product
 }
 
-func CreateInstance(l *log.Logger, products *data.ProductsData, product *data.Product) *Products {
+func CreateInstance(l *log.Logger, products *data.ProductsData, product data.Product) *Products {
 	return &Products{l, products, product}
 }
 
@@ -29,47 +31,37 @@ func (p *Products) GetProducts(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Products) AddProduct(rw http.ResponseWriter, r *http.Request) {
-	err := p.productModel.FromJSON(r.Body)
+	prod := r.Context().Value(KeyProduct{}).(data.Product)
 
-	if err != nil {
-		http.Error(rw, "Unabled to save this product", http.StatusInternalServerError)
-	}
-
-	p.productsMethods.AddProducts(p.productModel)
+	p.productsMethods.AddProducts(prod)
 
 	rw.WriteHeader(http.StatusAccepted)
 }
 
-func (p *Products) UpdateProducts(id int, rw http.ResponseWriter, r *http.Request) {
-	err := p.productModel.FromJSON(r.Body)
-	if err != nil {
-		http.Error(rw, "Unabled to save this product", http.StatusInternalServerError)
-	}
+func (p *Products) UpdateProducts(rw http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, _ := strconv.Atoi(vars["id"])
+
 	p.productsMethods.UpdateProducts(id, p.productModel)
 
 	rw.WriteHeader(http.StatusAccepted)
 }
 
-func (p *Products) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	rw.Header().Set("Content-Type", "application/json")
+type KeyProduct struct{}
 
-	if r.Method == http.MethodGet {
-		p.GetProducts(rw, r)
-		return
-	}
-	if r.Method == http.MethodPost {
-		p.AddProduct(rw, r)
-		return
-	}
+func (p *Products) MiddlewareValidateProduct(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 
-	if r.Method == http.MethodPut {
-		params := strings.Split(r.URL.Path, "/")
+		err := p.productModel.FromJSON(r.Body)
+		if err != nil {
+			p.log.Println("[ERROR] deserializing product", err)
+			http.Error(rw, "Error reading product", http.StatusBadRequest)
+			return
+		}
 
-		id, _ := strconv.Atoi(params[2])
-		p.UpdateProducts(id, rw, r)
-		return
-	}
+		ctx := context.WithValue(r.Context(), KeyProduct{}, p.productModel)
+		r = r.WithContext(ctx)
 
-	rw.WriteHeader(http.StatusMethodNotAllowed)
-	return
+		next.ServeHTTP(rw, r)
+	})
 }

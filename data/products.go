@@ -17,9 +17,9 @@ type Product struct {
 	DeletedOn   string  `json:"-"`
 }
 
-type ProductsData []*Product
+type ProductsData []Product
 
-var productList = []*Product{
+var productList = []Product{
 	{
 		ID:          1,
 		Name:        "Latte",
@@ -58,12 +58,12 @@ func (p *ProductsData) GetProducts() ProductsData {
 	return productList
 }
 
-func (p *ProductsData) AddProducts(product *Product) {
+func (p *ProductsData) AddProducts(product Product) {
 	product.ID = GetNextID()
 	productList = append(productList, product)
 }
 
-func (p *ProductsData) UpdateProducts(id int, product *Product) {
+func (p *ProductsData) UpdateProducts(id int, product Product) {
 	product.ID = id
 	productList[id-1] = product
 }

@@ -9,14 +9,26 @@ import (
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 func main() {
 	l := log.New(os.Stdout, "product-api ", log.LstdFlags)
-	products := handlers.CreateInstance(l, &data.ProductsData{}, &data.Product{})
-	sm := http.NewServeMux()
+	products := handlers.CreateInstance(l, &data.ProductsData{}, data.Product{})
+	sm := mux.NewRouter()
 
-	sm.Handle("/", products)
+	// sm.Handle("/products", products).Methods
+	getRouter := sm.Methods("GET").Subrouter()
+	getRouter.HandleFunc("/", products.GetProducts)
+
+	putRouter := sm.Methods("PUT").Subrouter()
+	putRouter.HandleFunc("/{id:[0-9]+}", products.UpdateProducts)
+	putRouter.Use(products.MiddlewareValidateProduct)
+
+	postRouter := sm.Methods("POST").Subrouter()
+	postRouter.HandleFunc("/", products.AddProduct)
+	postRouter.Use(products.MiddlewareValidateProduct)
 
 	s := &http.Server{
 		Addr:         ":9090",
