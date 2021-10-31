@@ -4,17 +4,24 @@ import (
 	"encoding/json"
 	"io"
 	"time"
+
+	"github.com/go-playground/validator/v10"
 )
 
 type Product struct {
-	ID          int     `json:"id"`
-	Name        string  `json:"name"`
+	ID          int     `json:"id" `
+	Name        string  `json:"name" validate:"required"`
 	Description string  `json:"description"`
-	Price       float32 `json:"price"`
-	SKU         string  `json:"sku"`
+	Price       float32 `json:"price" validate:"required"`
+	SKU         string  `json:"sku" validate:"required"`
 	CreatedOn   string  `json:"createdOn"`
 	UpdatedOn   string  `json:"-"`
 	DeletedOn   string  `json:"-"`
+}
+
+func (p *Product) Validate() error {
+	validate := validator.New()
+	return validate.Struct(p)
 }
 
 type ProductsData []Product
